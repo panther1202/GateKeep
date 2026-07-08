@@ -97,3 +97,21 @@ class PostQueue:
 
     def pending_drafts(self):
         return [p for p in self.all_posts() if p["status"] == "draft"]
+
+    def next_approved(self):
+        approved = [p for p in self.all_posts() if p["status"] == "approved"]
+        if not approved:
+            return None
+        # ISO-8601 UTC strings sort chronologically as plain strings.
+        return min(approved, key=lambda p: p["approved_at"])
+
+    def mark_posted(self, post_id, linkedin_post_id):
+        data = self._load()
+        post = self._find(data, post_id)
+        if post["status"] != "approved":
+            raise QueueError(f"can only post an approved post, not {post['status']}")
+        post["status"] = "posted"
+        post["posted_at"] = self._now()
+        post["linkedin_post_id"] = linkedin_post_id
+        self._save(data)
+        return post

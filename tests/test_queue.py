@@ -104,3 +104,46 @@ def test_unknown_id_raises(tmp_path):
     q = PostQueue(tmp_path / "posts.json")
     with pytest.raises(QueueError):
         q.approve("no-such-id")
+
+
+def test_next_approved_none_when_empty(tmp_path):
+    q = PostQueue(tmp_path / "posts.json", now_fn=_fixed_clock())
+    q.add_post("draft only", "llm-tip", "manual")
+    assert q.next_approved() is None
+
+
+def test_next_approved_picks_oldest_approved_at(tmp_path):
+    q = PostQueue(tmp_path / "posts.json", now_fn=_fixed_clock())
+    first = q.add_post("first", "llm-tip", "manual")
+    second = q.add_post("second", "llm-tip", "manual")
+    # Approve second first, then first -> first has the later approved_at.
+    q.approve(second["id"])
+    q.approve(first["id"])
+    # second was approved earlier, so it is next.
+    assert q.next_approved()["id"] == second["id"]
+
+
+def test_next_approved_ignores_posted(tmp_path):
+    q = PostQueue(tmp_path / "posts.json", now_fn=_fixed_clock())
+    p = q.add_post("done", "llm-tip", "manual")
+    q.approve(p["id"])
+    q.mark_posted(p["id"], "urn:li:share:999")
+    assert q.next_approved() is None
+
+
+def test_mark_posted_records_result(tmp_path):
+    q = PostQueue(tmp_path / "posts.json", now_fn=_fixed_clock())
+    p = q.add_post("go", "llm-tip", "manual")
+    q.approve(p["id"])
+    q.mark_posted(p["id"], "urn:li:share:123")
+    updated = q.all_posts()[0]
+    assert updated["status"] == "posted"
+    assert updated["posted_at"] is not None
+    assert updated["linkedin_post_id"] == "urn:li:share:123"
+
+
+def test_mark_posted_only_from_approved(tmp_path):
+    q = PostQueue(tmp_path / "posts.json", now_fn=_fixed_clock())
+    p = q.add_post("go", "llm-tip", "manual")  # still a draft
+    with pytest.raises(QueueError):
+        q.mark_posted(p["id"], "urn:li:share:123")
