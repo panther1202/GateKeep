@@ -1,0 +1,87 @@
+import os
+import urllib.parse
+import webbrowser
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
+
+import requests
+from dotenv import load_dotenv, set_key
+
+ENV_PATH = Path(__file__).parent / ".env"
+AUTH_URL = "https://www.linkedin.com/oauth/v2/authorization"
+TOKEN_URL = "https://www.linkedin.com/oauth/v2/accessToken"
+USERINFO_URL = "https://api.linkedin.com/v2/userinfo"
+SCOPE = "w_member_social openid profile"
+
+
+class _CodeCatcher(BaseHTTPRequestHandler):
+    code = None
+
+    def do_GET(self):
+        params = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+        _CodeCatcher.code = params.get("code", [None])[0]
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html")
+        self.end_headers()
+        self.wfile.write(b"<h1>GateKeep: authorization received. You can close this tab.</h1>")
+
+    def log_message(self, *args):
+        pass  # silence server logging
+
+
+def main():
+    load_dotenv(ENV_PATH)
+    client_id = os.environ["LINKEDIN_CLIENT_ID"]
+    client_secret = os.environ["LINKEDIN_CLIENT_SECRET"]
+    redirect_uri = os.environ.get("LINKEDIN_REDIRECT_URI", "http://localhost:8000/callback")
+    parsed = urllib.parse.urlparse(redirect_uri)
+    host, port = parsed.hostname, parsed.port or 8000
+
+    auth_params = urllib.parse.urlencode(
+        {
+            "response_type": "code",
+            "client_id": client_id,
+            "redirect_uri": redirect_uri,
+            "scope": SCOPE,
+        }
+    )
+    print("Opening browser for LinkedIn consent...")
+    webbrowser.open(f"{AUTH_URL}?{auth_params}")
+
+    server = HTTPServer((host, port), _CodeCatcher)
+    server.handle_request()  # blocks until the single redirect is received
+    code = _CodeCatcher.code
+    if not code:
+        raise SystemExit("No authorization code received.")
+
+    token_resp = requests.post(
+        TOKEN_URL,
+        data={
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": redirect_uri,
+            "client_id": client_id,
+            "client_secret": client_secret,
+        },
+        timeout=30,
+    )
+    token_resp.raise_for_status()
+    access_token = token_resp.json()["access_token"]
+
+    # Fetch the member URN needed as the post author.
+    userinfo = requests.get(
+        USERINFO_URL,
+        headers={"Authorization": f"Bearer {access_token}"},
+        timeout=30,
+    )
+    userinfo.raise_for_status()
+    author_urn = f"urn:li:person:{userinfo.json()['sub']}"
+
+    set_key(str(ENV_PATH), "LINKEDIN_ACCESS_TOKEN", access_token)
+    set_key(str(ENV_PATH), "LINKEDIN_AUTHOR_URN", author_urn)
+    print(f"Token refreshed. Author URN: {author_urn}")
+    print(".env updated.")
+
+
+if __name__ == "__main__":
+    main()
