@@ -58,3 +58,49 @@ def test_load_corrupt_file_raises(tmp_path):
     q = PostQueue(path)
     with pytest.raises(QueueError):
         q.all_posts()
+
+
+def test_update_text_only_on_draft(tmp_path):
+    q = PostQueue(tmp_path / "posts.json", now_fn=_fixed_clock())
+    p = q.add_post("old", "manual", "manual")
+    q.update_text(p["id"], "new")
+    assert q.all_posts()[0]["text"] == "new"
+
+
+def test_approve_sets_status_and_timestamp(tmp_path):
+    q = PostQueue(tmp_path / "posts.json", now_fn=_fixed_clock())
+    p = q.add_post("hi", "ai-take", "manual")
+    q.approve(p["id"])
+    updated = q.all_posts()[0]
+    assert updated["status"] == "approved"
+    assert updated["approved_at"] is not None
+
+
+def test_approve_only_from_draft(tmp_path):
+    q = PostQueue(tmp_path / "posts.json", now_fn=_fixed_clock())
+    p = q.add_post("hi", "ai-take", "manual")
+    q.approve(p["id"])
+    with pytest.raises(QueueError):
+        q.approve(p["id"])  # already approved
+
+
+def test_reject_sets_status(tmp_path):
+    q = PostQueue(tmp_path / "posts.json", now_fn=_fixed_clock())
+    p = q.add_post("hi", "ai-take", "manual")
+    q.reject(p["id"])
+    assert q.all_posts()[0]["status"] == "rejected"
+
+
+def test_pending_drafts_excludes_non_drafts(tmp_path):
+    q = PostQueue(tmp_path / "posts.json", now_fn=_fixed_clock())
+    a = q.add_post("a", "llm-tip", "manual")
+    b = q.add_post("b", "llm-tip", "manual")
+    q.approve(b["id"])
+    pending_ids = [p["id"] for p in q.pending_drafts()]
+    assert pending_ids == [a["id"]]
+
+
+def test_unknown_id_raises(tmp_path):
+    q = PostQueue(tmp_path / "posts.json")
+    with pytest.raises(QueueError):
+        q.approve("no-such-id")

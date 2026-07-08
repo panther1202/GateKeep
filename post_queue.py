@@ -60,3 +60,40 @@ class PostQueue:
         data["posts"].append(post)
         self._save(data)
         return post
+
+    def _find(self, data, post_id):
+        for post in data["posts"]:
+            if post["id"] == post_id:
+                return post
+        raise QueueError(f"no post with id {post_id!r}")
+
+    def update_text(self, post_id, text):
+        data = self._load()
+        post = self._find(data, post_id)
+        if post["status"] != "draft":
+            raise QueueError("can only edit text of a draft")
+        post["text"] = text
+        self._save(data)
+        return post
+
+    def approve(self, post_id):
+        data = self._load()
+        post = self._find(data, post_id)
+        if post["status"] != "draft":
+            raise QueueError(f"can only approve a draft, not {post['status']}")
+        post["status"] = "approved"
+        post["approved_at"] = self._now()
+        self._save(data)
+        return post
+
+    def reject(self, post_id):
+        data = self._load()
+        post = self._find(data, post_id)
+        if post["status"] not in ("draft", "approved"):
+            raise QueueError(f"cannot reject a {post['status']} post")
+        post["status"] = "rejected"
+        self._save(data)
+        return post
+
+    def pending_drafts(self):
+        return [p for p in self.all_posts() if p["status"] == "draft"]
