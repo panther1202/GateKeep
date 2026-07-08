@@ -14,7 +14,7 @@
 
 | File | Responsibility |
 |---|---|
-| `queue.py` | All `posts.json` read/write/query logic. The single source of truth for post state transitions and "next approved" selection. Pure logic, fully unit-tested. |
+| `post_queue.py` | All `posts.json` read/write/query logic. The single source of truth for post state transitions and "next approved" selection. Pure logic, fully unit-tested. (Named `post_queue.py`, not `queue.py`, to avoid shadowing Python's stdlib `queue` module that dependencies import.) |
 | `linkedin_client.py` | Thin wrapper over LinkedIn's Posts API (`w_member_social`). One function: publish text. Used only by `publish.py`. |
 | `gemini_client.py` | Thin wrapper over the Gemini API for draft generation, plus per-pillar prompt templates. Used only by `app.py`. |
 | `publish.py` | Headless entry point. Selects the oldest approved post, publishes it, records the result. Run by the scheduler. |
@@ -186,9 +186,9 @@ def test_load_corrupt_file_raises(tmp_path):
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `pytest tests/test_queue.py -v`
-Expected: FAIL / collection error — `ModuleNotFoundError: No module named 'queue'` refers to our file not existing yet (Python's stdlib `queue` has no `PostQueue`, so `ImportError` on the names).
+Expected: FAIL / collection error — `ModuleNotFoundError: No module named 'post_queue'` (our file does not exist yet).
 
-> Note: our module is named `queue.py` and shadows the stdlib `queue` when tests run from the repo root. That is intended — we never use stdlib `queue`. Run pytest from the repo root so the local module wins.
+> Note: the module is named `post_queue.py`, NOT `queue.py`. Naming it `queue.py` would shadow Python's stdlib `queue` module for the whole process (repo root sits on `sys.path[0]` under pytest / `streamlit run` / `python publish.py`), and dependencies such as streamlit and grpc import stdlib `queue` internally — the shadow would break them.
 
 - [ ] **Step 3: Write minimal implementation**
 
@@ -735,13 +735,13 @@ git commit -m "feat: headless publisher with empty/success/failure handling"
 
 - [ ] **Step 1: Write the implementation**
 
-The per-pillar prompts embed Panth's voice/honesty rules (no em-dashes, no fabrication, first person, plain language) restated from the `post-writing` skill and CLAUDE.md. Create `gemini_client.py`:
+The voice/honesty rules (no em-dashes, no fabrication, first person, plain language) are passed to Gemini as a **`system_instruction`** on the model, kept separate from the per-pillar user prompt. This gives the rules higher priority than the task prompt and is harder for the model to drift from. Rules restated from the `post-writing` skill and CLAUDE.md. Create `gemini_client.py`:
 ```python
 import google.generativeai as genai
 
 MODEL_NAME = "gemini-1.5-flash"
 
-VOICE_RULES = (
+SYSTEM_INSTRUCTION = (
     "Write in first person as Panth Patel, a software engineer. "
     "Rules: no em-dashes, no cliches, no hashtags-stuffing (at most 3 relevant tags), "
     "no fabricated or inflated claims, plain direct language, 120-220 words. "
@@ -783,12 +783,14 @@ def generate_draft(api_key, pillar, extra_context=""):
     """Generate a draft post for the given pillar. Returns the draft text."""
     if pillar not in PILLAR_PROMPTS:
         raise GeminiError(f"no prompt template for pillar {pillar!r}")
-    prompt = f"{VOICE_RULES}\n\n{PILLAR_PROMPTS[pillar]}"
+    prompt = PILLAR_PROMPTS[pillar]
     if extra_context.strip():
         prompt += f"\n\nAdditional context to weave in:\n{extra_context.strip()}"
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(MODEL_NAME)
+        model = genai.GenerativeModel(
+            MODEL_NAME, system_instruction=SYSTEM_INSTRUCTION
+        )
         resp = model.generate_content(prompt)
         text = (resp.text or "").strip()
     except Exception as e:  # SDK raises various exception types

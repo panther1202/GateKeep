@@ -20,7 +20,7 @@ This is also intended as a standalone personal/portfolio project - own repo, own
 
 | Decision | Choice | Why |
 |---|---|---|
-| Location | New standalone repo: `C:\Users\Admin\Desktop\linkedin-auto-poster` | Doubles as its own portfolio project, not entangled with ai-job-search |
+| Location | New standalone repo: `C:\Users\Admin\Desktop\GateKeep` | Doubles as its own portfolio project, not entangled with ai-job-search |
 | Content sources | Both: manual entries + Gemini-generated drafts, same queue | User wants both; unified queue keeps publish logic simple |
 | Approval gate | **Required on everything**, manual and generated alike | LLM-drafted posts under a real name carry factual/tone risk; user explicitly chose the strictest option over "AI-only gate" or "no gate" |
 | Approval UI | Streamlit local web app | User's preference over CLI-only or hand-editing the queue file |
@@ -113,7 +113,7 @@ LinkedIn's OAuth access token expires roughly every 60 days. `reauth.py` is a ma
 ## Folder Structure
 
 ```
-linkedin-auto-poster/
+GateKeep/
 ├── .env                  (gitignored - LinkedIn token, Gemini key)
 ├── .gitignore
 ├── posts.json            (gitignored - personal draft content)
