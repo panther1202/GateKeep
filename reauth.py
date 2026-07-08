@@ -1,4 +1,5 @@
 import os
+import socket
 import urllib.parse
 import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -29,13 +30,32 @@ class _CodeCatcher(BaseHTTPRequestHandler):
         pass  # silence server logging
 
 
+class _DualStackServer(HTTPServer):
+    """Listen on both IPv4 and IPv6 loopback.
+
+    Plain HTTPServer binds IPv4 127.0.0.1 only. On Windows, browsers often
+    resolve `localhost` to IPv6 ::1 first and get "connection refused" while
+    the server waits on 127.0.0.1. Binding an IPv6 socket with IPV6_V6ONLY=0
+    accepts both stacks, so the OAuth callback is caught either way.
+    """
+
+    address_family = socket.AF_INET6
+
+    def server_bind(self):
+        try:
+            self.socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        except (AttributeError, OSError):
+            pass  # not supported here; IPv6-only bind still handles ::1
+        super().server_bind()
+
+
 def main():
     load_dotenv(ENV_PATH)
     client_id = os.environ["LINKEDIN_CLIENT_ID"]
     client_secret = os.environ["LINKEDIN_CLIENT_SECRET"]
     redirect_uri = os.environ.get("LINKEDIN_REDIRECT_URI", "http://localhost:8000/callback")
     parsed = urllib.parse.urlparse(redirect_uri)
-    host, port = parsed.hostname, parsed.port or 8000
+    port = parsed.port or 8000
 
     auth_params = urllib.parse.urlencode(
         {
@@ -48,7 +68,7 @@ def main():
     print("Opening browser for LinkedIn consent...")
     webbrowser.open(f"{AUTH_URL}?{auth_params}")
 
-    server = HTTPServer((host, port), _CodeCatcher)
+    server = _DualStackServer(("", port), _CodeCatcher)
     print(f"Waiting for LinkedIn to redirect back to {redirect_uri} ...")
     # Keep serving until the callback carrying ?code= arrives. This tolerates
     # stray requests (favicon, prefetch) that would otherwise consume a single
