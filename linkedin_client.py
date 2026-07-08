@@ -1,7 +1,11 @@
+import os
+
 import requests
 
 POSTS_URL = "https://api.linkedin.com/rest/posts"
-LINKEDIN_VERSION = "202401"  # bump to a current month per LinkedIn's versioning
+# LinkedIn versions (YYYYMM) expire roughly yearly. Override via
+# LINKEDIN_API_VERSION in .env when this one lapses (426 NONEXISTENT_VERSION).
+DEFAULT_LINKEDIN_VERSION = "202506"
 
 
 class LinkedInError(Exception):
@@ -14,11 +18,12 @@ def publish_text(access_token, author_urn, text):
     Returns the created post's URN/id string on success.
     Raises LinkedInError on any non-2xx response.
     """
+    version = os.environ.get("LINKEDIN_API_VERSION", DEFAULT_LINKEDIN_VERSION)
     headers = {
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json",
         "X-Restli-Protocol-Version": "2.0.0",
-        "LinkedIn-Version": LINKEDIN_VERSION,
+        "LinkedIn-Version": version,
     }
     body = {
         "author": author_urn,
