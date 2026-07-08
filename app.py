@@ -1,0 +1,82 @@
+import os
+from pathlib import Path
+
+import streamlit as st
+from dotenv import load_dotenv
+
+from post_queue import PostQueue, VALID_PILLARS
+from gemini_client import generate_draft, GeminiError, PILLAR_PROMPTS
+
+load_dotenv()
+POSTS_PATH = Path(__file__).parent / "posts.json"
+queue = PostQueue(POSTS_PATH)
+
+GENERATABLE_PILLARS = list(PILLAR_PROMPTS.keys())  # excludes "manual"
+
+st.set_page_config(page_title="GateKeep", page_icon="✅")
+st.title("GateKeep — LinkedIn post control panel")
+
+# --- Add a manual post ---------------------------------------------------
+st.header("Add a manual post")
+with st.form("manual", clear_on_submit=True):
+    manual_text = st.text_area("Post text", height=160)
+    manual_pillar = st.selectbox("Pillar / tag", sorted(VALID_PILLARS))
+    if st.form_submit_button("Add draft") and manual_text.strip():
+        queue.add_post(text=manual_text.strip(), pillar=manual_pillar, source="manual")
+        st.success("Draft added.")
+        st.rerun()
+
+# --- Generate a draft with Gemini ---------------------------------------
+st.header("Generate a draft (Gemini)")
+gen_pillar = st.selectbox("Pillar", GENERATABLE_PILLARS, key="gen_pillar")
+gen_context = st.text_input("Optional extra context")
+if st.button("Generate"):
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        st.error("GEMINI_API_KEY missing from .env")
+    else:
+        try:
+            draft = generate_draft(api_key, gen_pillar, gen_context)
+            queue.add_post(text=draft, pillar=gen_pillar, source="generated")
+            st.success("Generated draft added below for review.")
+            st.rerun()
+        except GeminiError as e:
+            st.error(str(e))
+
+# --- Review pending drafts ----------------------------------------------
+st.header("Pending review")
+pending = queue.pending_drafts()
+if not pending:
+    st.caption("No drafts awaiting review.")
+for post in pending:
+    with st.container(border=True):
+        st.caption(f"{post['pillar']} · {post['source']} · {post['created_at']}")
+        edited = st.text_area("Text", value=post["text"], key=f"edit_{post['id']}", height=160)
+        c1, c2, c3 = st.columns(3)
+        if c1.button("Save edits", key=f"save_{post['id']}"):
+            queue.update_text(post["id"], edited.strip())
+            st.rerun()
+        if c2.button("Approve", key=f"approve_{post['id']}"):
+            if edited.strip() != post["text"]:
+                queue.update_text(post["id"], edited.strip())
+            queue.approve(post["id"])
+            st.rerun()
+        if c3.button("Reject", key=f"reject_{post['id']}"):
+            queue.reject(post["id"])
+            st.rerun()
+
+# --- Approved (waiting to publish) --------------------------------------
+st.header("Approved — waiting to publish")
+approved = [p for p in queue.all_posts() if p["status"] == "approved"]
+for post in sorted(approved, key=lambda p: p["approved_at"]):
+    st.markdown(f"- *{post['pillar']}* (approved {post['approved_at']}): {post['text'][:80]}…")
+if not approved:
+    st.caption("Nothing approved yet.")
+
+# --- History -------------------------------------------------------------
+st.header("History")
+history = [p for p in queue.all_posts() if p["status"] in ("posted", "rejected")]
+for post in reversed(history):
+    label = "posted" if post["status"] == "posted" else "rejected"
+    when = post["posted_at"] or post["created_at"]
+    st.markdown(f"- **{label}** · {post['pillar']} · {when}: {post['text'][:80]}…")
