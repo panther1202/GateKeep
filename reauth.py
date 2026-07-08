@@ -49,10 +49,13 @@ def main():
     webbrowser.open(f"{AUTH_URL}?{auth_params}")
 
     server = HTTPServer((host, port), _CodeCatcher)
-    server.handle_request()  # blocks until the single redirect is received
+    print(f"Waiting for LinkedIn to redirect back to {redirect_uri} ...")
+    # Keep serving until the callback carrying ?code= arrives. This tolerates
+    # stray requests (favicon, prefetch) that would otherwise consume a single
+    # handle_request() call and abort the flow before the real callback.
+    while _CodeCatcher.code is None:
+        server.handle_request()
     code = _CodeCatcher.code
-    if not code:
-        raise SystemExit("No authorization code received.")
 
     token_resp = requests.post(
         TOKEN_URL,
