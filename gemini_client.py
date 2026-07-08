@@ -1,6 +1,6 @@
 import google.generativeai as genai
 
-MODEL_NAME = "gemini-1.5-flash"
+MODEL_NAME = "gemini-2.5-flash"
 
 SYSTEM_INSTRUCTION = (
     "Write in first person as Panth Patel, a software engineer. "
