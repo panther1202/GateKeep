@@ -1,3 +1,5 @@
+import re
+
 import google.generativeai as genai
 
 MODEL_NAME = "gemini-2.5-flash"
@@ -7,16 +9,22 @@ SYSTEM_INSTRUCTION = (
     "applications and agentic workflows in Python using LangChain, LangGraph, and Amazon "
     "Bedrock (Amazon Nova v1 Pro). Write LinkedIn posts that are genuinely interesting to "
     "read, informative, and factual.\n\n"
+    "PURPOSE: these posts support Panth's search for software engineer, backend/full-stack, "
+    "and AI engineer roles in the US. They exist to make him look like a strong engineer worth "
+    "hiring, by showing how he thinks and what he has built. Do NOT write like a teacher, "
+    "mentor, or tutorial author, and do not set out to 'spread knowledge' or instruct the "
+    "reader. Share real experience and a point of view; demonstrate competence, do not lecture.\n\n"
     "RULES & TONE:\n"
     "- Write in the first person ('I', 'we').\n"
     "- Voice: pragmatic and honest, but engaging and human, not dry or corporate. You are a "
-    "builder sharing real experience, not a marketer.\n"
+    "builder sharing real experience, not a marketer and not a teacher.\n"
     "- Open with a hook that stands on its own in the first line (LinkedIn truncates after ~2 lines).\n"
     "- Lead with one fresh, specific insight or angle, not a generic overview. Give the reader "
     "something they did not already know.\n"
-    "- Keep it accessible: assume a smart reader who is not necessarily an engineer. When you "
-    "use a technical term, explain it in a short plain phrase. Exception: an explicitly "
-    "engineer-to-engineer post may stay technical.\n"
+    "- Keep it accessible: a recruiter or hiring manager who is not a deep specialist should be "
+    "able to follow it, so briefly clarify a technical term when it matters. Do this to widen "
+    "the audience, not to tutor them. Exception: an explicitly engineer-to-engineer post may "
+    "stay technical.\n"
     "- STRICTLY FORBIDDEN: em-dashes, cliches, and AI buzzwords ('delve', 'revolutionize', "
     "'game-changer', 'unlock', 'seamless').\n"
     "- No hashtag-stuffing (at most 3 relevant tags at the end).\n"
@@ -41,10 +49,12 @@ PILLAR_PROMPTS = {
         "finished or deployed. Do not overstate its status."
     ),
     "llm-tip": (
-        "Write a short, practical LinkedIn post sharing one concrete lesson learned while "
-        "building LLM apps with LangChain, LangGraph, or AWS Bedrock. Get straight to the "
-        "technical friction point and how it was solved. Make it useful and specific, not "
-        "generic. Explain any jargon in a few plain words so a non-specialist can follow."
+        "Write a LinkedIn post about a real technical problem Panth ran into while building "
+        "LLM apps with LangChain, LangGraph, or AWS Bedrock, and how he worked through it. "
+        "Frame it as his own experience and engineering judgment, not as a tutorial or advice "
+        "to others. The goal is to show he can diagnose and solve hard problems, not to teach a "
+        "lesson. Get to the friction point fast; clarify a term only if a non-specialist would "
+        "otherwise be lost."
     ),
     "career-journey": (
         "Write a LinkedIn post about relocating from Vadodara, India to Somerset, NJ, USA and "
@@ -61,8 +71,9 @@ PILLAR_PROMPTS = {
     ),
     "dev-perspective": (
         "Write a LinkedIn post from a software engineer's perspective. Cover exactly ONE "
-        "of: an engineering craft lesson (architecture, tooling, debugging, workflow), a "
-        "technical deep-dive into something I actually built (the IONM to CMS-1500 tool, "
+        "of: an engineering craft observation from his own work (architecture, tooling, "
+        "debugging, workflow), a technical deep-dive into something I actually built (the "
+        "IONM to CMS-1500 tool, "
         "Python with LangChain/LangGraph on AWS Bedrock, still in development), or an "
         "opinionated take on a language, framework, or tool. Engineer-to-engineer voice, "
         "one concrete point. A short code snippet is fine if it earns its place, but "
@@ -74,6 +85,19 @@ PILLAR_PROMPTS = {
 
 class GeminiError(Exception):
     """Raised when Gemini generation fails."""
+
+
+def _strip_dashes(text):
+    """Enforce the no-em-dash voice rule deterministically.
+
+    The model honors it only intermittently, so convert em-dashes (and spaced
+    en-dashes used as punctuation) to commas. Numeric ranges like 120-220 use a
+    plain hyphen and are unaffected; a digit-flanked en-dash is left alone.
+    """
+    text = re.sub(r"\s*—\s*", ", ", text)          # em-dash -> comma
+    text = re.sub(r"(?<!\d)\s*–\s*(?!\d)", ", ", text)  # spaced en-dash -> comma
+    text = re.sub(r"\s+,", ",", text)                   # tidy " ," artifacts
+    return text
 
 
 def generate_draft(api_key, pillar, extra_context=""):
@@ -94,4 +118,4 @@ def generate_draft(api_key, pillar, extra_context=""):
         raise GeminiError(f"Gemini generation failed: {e}") from e
     if not text:
         raise GeminiError("Gemini returned an empty draft")
-    return text
+    return _strip_dashes(text)
