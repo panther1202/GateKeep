@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-VALID_PILLARS = {"build-in-public", "llm-tip", "career-journey", "ai-take", "manual"}
+VALID_PILLARS = {"build-in-public", "llm-tip", "career-journey", "ai-take", "dev-perspective", "manual"}
 VALID_SOURCES = {"manual", "generated"}
 
 

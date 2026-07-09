@@ -147,3 +147,13 @@ def test_mark_posted_only_from_approved(tmp_path):
     p = q.add_post("go", "llm-tip", "manual")  # still a draft
     with pytest.raises(QueueError):
         q.mark_posted(p["id"], "urn:li:share:123")
+
+
+def test_dev_perspective_is_a_valid_pillar(tmp_path):
+    from gemini_client import PILLAR_PROMPTS
+
+    q = PostQueue(tmp_path / "posts.json", now_fn=_fixed_clock())
+    p = q.add_post("dev post", "dev-perspective", "manual")
+    assert p["pillar"] == "dev-perspective"
+    # Also exposed as a generatable pillar (drives the Generate dropdown).
+    assert "dev-perspective" in PILLAR_PROMPTS

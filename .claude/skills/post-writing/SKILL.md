@@ -35,3 +35,4 @@ description: Voice, structure, and honesty rules for drafting LinkedIn posts for
 - **llm-tip**: one lesson, one example. Not a listicle.
 - **career-journey**: personal and specific to Panth's actual relocation (Vadodara to Somerset, NJ) - not generic immigrant-journey platitudes.
 - **ai-take**: a real opinion, not a neutral summary of news. Should be something Panth could defend if challenged in the comments.
+- **dev-perspective**: engineer-to-engineer. One concrete point, one angle (craft lesson, technical deep-dive of real work, or a language/framework/tool opinion). A short code snippet is fine only if it earns its place - LinkedIn shows code as plain text, so keep it under ~8 lines and readable on a phone. Same honesty rule: illustrative snippets only, never imply the IONM tool is finished or deployed.

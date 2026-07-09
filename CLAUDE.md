@@ -22,6 +22,7 @@ His full career profile (education, experience, skills, behavioral/DISC assessme
 2. **llm-tip** - short lessons learned using LangChain/LangGraph/AWS Bedrock.
 3. **career-journey** - the India-to-US relocation and job search narrative.
 4. **ai-take** - his own opinion on AI industry news (leverages his DISC Dominance/Influence profile - assertive, sociable, comfortable with a point of view).
+5. **dev-perspective** - engineer-to-engineer software posts covering any one of: an engineering craft lesson (architecture, tooling, debugging, workflow), a technical deep-dive into something he actually built (the IONM-to-CMS1500 tool), or an opinionated take on a language/framework/tool. Short code snippets allowed (LinkedIn renders code as plain text; keep under ~8 lines). Broader than llm-tip (LLM-specific) and build-in-public (project progress).
 
 **Critical constraint carried over from the ai-job-search project's own rules: never fabricate or inflate claims.** Panth's actual LinkedIn profile was already caught making unverifiable claims (a "Manager" role and "Agile/Scrum leadership" that didn't correspond to any real position) and those were removed during profile cleanup. Any generated post content must be checked against what's actually true - a discontinued project must say "70% complete, discontinued by client," not "shipped."
 

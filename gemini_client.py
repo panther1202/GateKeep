@@ -33,8 +33,18 @@ PILLAR_PROMPTS = {
         "Assertive and clear (he is comfortable holding a point of view), but grounded and "
         "not inflammatory."
     ),
+    "dev-perspective": (
+        "Write a LinkedIn post from a software engineer's perspective. Cover exactly ONE "
+        "of: an engineering craft lesson (architecture, tooling, debugging, workflow), a "
+        "technical deep-dive into something I actually built (the IONM to CMS-1500 tool, "
+        "Python with LangChain/LangGraph on AWS Bedrock, still in development), or an "
+        "opinionated take on a language, framework, or tool. Engineer-to-engineer voice, "
+        "one concrete point. A short code snippet is fine if it earns its place, but "
+        "LinkedIn renders code as plain text, so keep it under about 8 lines. Do not "
+        "overstate the project's status."
+    ),
 }
-
+    
 
 class GeminiError(Exception):
     """Raised when Gemini generation fails."""
