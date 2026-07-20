@@ -26,6 +26,7 @@ description: Voice, structure, and honesty rules for drafting LinkedIn posts for
 - Short paragraphs, generous line breaks. No text walls.
 - End with a genuine question inviting comment - not a generic "thoughts?" tacked on, tie it to the post's actual content.
 - 3-5 hashtags max, relevant ones (e.g. #AI #Python #MachineLearning), not stuffed.
+- A few tasteful emojis (roughly 2-4) are fine to make the post scannable and inviting - accent the hook or mark short-list items. Keep them relevant and professional; not one per line, not as word replacements, never childish or salesy.
 - If the post needs to reference a link, note in the draft that the link belongs in the first comment, not the post body - LinkedIn suppresses reach on posts with outbound links.
 - Target length: enough to be substantive, short enough to read on a phone without much scrolling. No hard word cap, but if a draft exceeds ~200 words, look for what to cut before publishing.
 
