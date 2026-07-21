@@ -94,7 +94,13 @@ if not approved:
 for post in sorted(approved, key=lambda p: p["approved_at"]):
     with st.container(border=True):
         st.caption(f"{post['pillar']} · approved {post['approved_at']}")
-        st.markdown(post["text"])
+        edited = st.text_area(
+            "Text", value=post["text"], key=f"edit_appr_{post['id']}", height=160
+        )
+        save_col, _ = st.columns(2)
+        if save_col.button("Save edits", key=f"save_appr_{post['id']}"):
+            queue.update_text(post["id"], edited.strip())
+            st.rerun()
         delete_control(post)
 
 # --- History -------------------------------------------------------------

@@ -67,11 +67,13 @@ class PostQueue:
                 return post
         raise QueueError(f"no post with id {post_id!r}")
 
+    EDITABLE_STATUSES = ("draft", "approved")
+
     def update_text(self, post_id, text):
         data = self._load()
         post = self._find(data, post_id)
-        if post["status"] != "draft":
-            raise QueueError("can only edit text of a draft")
+        if post["status"] not in self.EDITABLE_STATUSES:
+            raise QueueError(f"cannot edit text of a {post['status']} post")
         post["text"] = text
         self._save(data)
         return post

@@ -67,6 +67,25 @@ def test_update_text_only_on_draft(tmp_path):
     assert q.all_posts()[0]["text"] == "new"
 
 
+def test_update_text_on_approved_post(tmp_path):
+    q = PostQueue(tmp_path / "posts.json", now_fn=_fixed_clock())
+    p = q.add_post("old", "manual", "manual")
+    q.approve(p["id"])
+    q.update_text(p["id"], "edited after approval")
+    updated = q.all_posts()[0]
+    assert updated["text"] == "edited after approval"
+    assert updated["status"] == "approved"  # stays approved, no re-review needed
+
+
+def test_update_text_rejects_posted(tmp_path):
+    q = PostQueue(tmp_path / "posts.json", now_fn=_fixed_clock())
+    p = q.add_post("x", "manual", "manual")
+    q.approve(p["id"])
+    q.mark_posted(p["id"], "urn:li:share:1")
+    with pytest.raises(QueueError):
+        q.update_text(p["id"], "too late")
+
+
 def test_approve_sets_status_and_timestamp(tmp_path):
     q = PostQueue(tmp_path / "posts.json", now_fn=_fixed_clock())
     p = q.add_post("hi", "ai-take", "manual")
