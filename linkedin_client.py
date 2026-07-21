@@ -15,6 +15,16 @@ class LinkedInError(Exception):
     """Raised when LinkedIn rejects a publish request."""
 
 
+# LinkedIn's Posts API "commentary" is Little Text Format: these reserved
+# characters must be backslash-escaped or the text is truncated/mangled at
+# them. '#' is intentionally left unescaped so hashtags stay clickable.
+_RESERVED = set(r"\|{}@[]()<>*_~")
+
+
+def _escape_commentary(text):
+    return "".join("\\" + ch if ch in _RESERVED else ch for ch in text)
+
+
 def _post_once(access_token, author_urn, text, version):
     headers = {
         "Authorization": f"Bearer {access_token}",
@@ -24,7 +34,7 @@ def _post_once(access_token, author_urn, text, version):
     }
     body = {
         "author": author_urn,
-        "commentary": text,
+        "commentary": _escape_commentary(text),
         "visibility": "PUBLIC",
         "distribution": {
             "feedDistribution": "MAIN_FEED",

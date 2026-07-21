@@ -1,7 +1,7 @@
 import pytest
 
 import linkedin_client
-from linkedin_client import publish_text, LinkedInError
+from linkedin_client import publish_text, LinkedInError, _escape_commentary
 
 
 class FakeResp:
@@ -62,3 +62,26 @@ def test_publish_all_versions_retired_raises(monkeypatch):
     with pytest.raises(LinkedInError) as exc:
         publish_text("t", "urn:li:person:x", "hi")
     assert "no active LinkedIn-Version" in str(exc.value)
+
+
+def test_escape_commentary_escapes_reserved_keeps_hash():
+    assert (
+        _escape_commentary("IONM (x) *a* _b_ #tag")
+        == "IONM \\(x\\) \\*a\\* \\_b\\_ #tag"
+    )
+
+
+def test_escape_commentary_escapes_backslash():
+    assert _escape_commentary("a\\b") == "a\\\\b"
+
+
+def test_publish_sends_escaped_commentary(monkeypatch):
+    captured = {}
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        captured["json"] = json
+        return FakeResp(201, headers={"x-restli-id": "urn:li:share:9"})
+
+    monkeypatch.setattr(linkedin_client.requests, "post", fake_post)
+    publish_text("t", "urn:li:person:x", "see (this) and #tag")
+    assert captured["json"]["commentary"] == "see \\(this\\) and #tag"
