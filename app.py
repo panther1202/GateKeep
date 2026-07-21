@@ -4,8 +4,10 @@ from pathlib import Path
 import streamlit as st
 from dotenv import load_dotenv
 
-from post_queue import PostQueue, VALID_PILLARS
+from post_queue import PostQueue, VALID_PILLARS, QueueError
 from gemini_client import generate_draft, GeminiError, PILLAR_PROMPTS
+from linkedin_client import LinkedInError
+from publish import publish_one
 
 load_dotenv()
 POSTS_PATH = Path(__file__).parent / "posts.json"
@@ -29,6 +31,40 @@ def delete_control(post):
             st.session_state.pop(confirm_key, None)
             st.rerun()
     elif st.button("Delete", key=f"del_{pid}"):
+        st.session_state[confirm_key] = True
+        st.rerun()
+
+
+def publish_control(post, edited_text):
+    """Two-click confirm to publish a post to live LinkedIn right now.
+
+    Saves any pending text edit first, then publishes (approving a draft on the
+    way). Publishing is irreversible, hence the explicit confirm.
+    """
+    pid = post["id"]
+    confirm_key = f"confirm_pub_{pid}"
+    if st.session_state.get(confirm_key):
+        st.warning("Publish this to your live LinkedIn now? This cannot be undone.")
+        yes, no = st.columns(2)
+        if yes.button("Yes, publish", key=f"yespub_{pid}"):
+            token = os.environ.get("LINKEDIN_ACCESS_TOKEN")
+            urn = os.environ.get("LINKEDIN_AUTHOR_URN")
+            if not token or not urn:
+                st.error("LinkedIn credentials missing from .env (run reauth.py).")
+            else:
+                try:
+                    if edited_text.strip() and edited_text.strip() != post["text"]:
+                        queue.update_text(pid, edited_text.strip())
+                    post_urn = publish_one(queue, pid, token, urn)
+                    st.success(f"Published to LinkedIn ({post_urn}).")
+                except (LinkedInError, QueueError) as e:
+                    st.error(f"Publish failed: {e}")
+            st.session_state.pop(confirm_key, None)
+            st.rerun()
+        if no.button("Cancel", key=f"nopub_{pid}"):
+            st.session_state.pop(confirm_key, None)
+            st.rerun()
+    elif st.button("Publish now", key=f"pub_{pid}"):
         st.session_state[confirm_key] = True
         st.rerun()
 
@@ -84,6 +120,7 @@ for post in pending:
         if c3.button("Reject", key=f"reject_{post['id']}"):
             queue.reject(post["id"])
             st.rerun()
+        publish_control(post, edited)
         delete_control(post)
 
 # --- Approved (waiting to publish) --------------------------------------
@@ -101,6 +138,7 @@ for post in sorted(approved, key=lambda p: p["approved_at"]):
         if save_col.button("Save edits", key=f"save_appr_{post['id']}"):
             queue.update_text(post["id"], edited.strip())
             st.rerun()
+        publish_control(post, edited)
         delete_control(post)
 
 # --- History -------------------------------------------------------------

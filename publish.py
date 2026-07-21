@@ -5,7 +5,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from post_queue import PostQueue
+from post_queue import PostQueue, QueueError
 from linkedin_client import publish_text, LinkedInError
 
 POSTS_PATH = Path(__file__).parent / "posts.json"
@@ -22,6 +22,28 @@ def _configure_logging():
             logging.StreamHandler(),
         ],
     )
+
+
+def publish_one(queue, post_id, access_token, author_urn):
+    """Publish one specific post to LinkedIn right now.
+
+    If the post is still a draft, it is approved first (the caller's explicit
+    click is the manual approval). Only drafts and approved posts can be
+    published this way. Returns the LinkedIn post id. Raises LinkedInError on
+    API failure (the post is left approved so it can be retried) and QueueError
+    if the post is not in a publishable state.
+    """
+    post = next((p for p in queue.all_posts() if p["id"] == post_id), None)
+    if post is None:
+        raise QueueError(f"no post with id {post_id!r}")
+    if post["status"] == "draft":
+        queue.approve(post_id)
+    elif post["status"] != "approved":
+        raise QueueError(f"cannot publish a {post['status']} post")
+    post_urn = publish_text(access_token, author_urn, post["text"])
+    queue.mark_posted(post_id, post_urn)
+    logging.info("Published post %s on demand as %s", post_id, post_urn)
+    return post_urn
 
 
 def run(queue, access_token, author_urn):
