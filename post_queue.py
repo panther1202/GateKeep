@@ -98,6 +98,19 @@ class PostQueue:
     def pending_drafts(self):
         return [p for p in self.all_posts() if p["status"] == "draft"]
 
+    DELETABLE_STATUSES = ("draft", "approved")
+
+    def delete_post(self, post_id):
+        """Permanently remove a queued post. Only drafts and approved posts can be
+        deleted; posted/rejected history is protected."""
+        data = self._load()
+        post = self._find(data, post_id)
+        if post["status"] not in self.DELETABLE_STATUSES:
+            raise QueueError(f"cannot delete a {post['status']} post")
+        data["posts"] = [p for p in data["posts"] if p["id"] != post_id]
+        self._save(data)
+        return post
+
     def next_approved(self):
         approved = [p for p in self.all_posts() if p["status"] == "approved"]
         if not approved:

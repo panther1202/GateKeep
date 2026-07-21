@@ -149,6 +149,47 @@ def test_mark_posted_only_from_approved(tmp_path):
         q.mark_posted(p["id"], "urn:li:share:123")
 
 
+def test_delete_removes_a_draft(tmp_path):
+    q = PostQueue(tmp_path / "posts.json", now_fn=_fixed_clock())
+    a = q.add_post("a", "llm-tip", "manual")
+    b = q.add_post("b", "llm-tip", "manual")
+    deleted = q.delete_post(a["id"])
+    assert deleted["id"] == a["id"]
+    remaining = [p["id"] for p in q.all_posts()]
+    assert remaining == [b["id"]]
+
+
+def test_delete_removes_an_approved_post(tmp_path):
+    q = PostQueue(tmp_path / "posts.json", now_fn=_fixed_clock())
+    p = q.add_post("a", "llm-tip", "manual")
+    q.approve(p["id"])
+    q.delete_post(p["id"])
+    assert q.all_posts() == []
+
+
+def test_delete_rejects_posted(tmp_path):
+    q = PostQueue(tmp_path / "posts.json", now_fn=_fixed_clock())
+    p = q.add_post("a", "llm-tip", "manual")
+    q.approve(p["id"])
+    q.mark_posted(p["id"], "urn:li:share:1")
+    with pytest.raises(QueueError):
+        q.delete_post(p["id"])  # posted history is protected
+
+
+def test_delete_rejects_rejected(tmp_path):
+    q = PostQueue(tmp_path / "posts.json", now_fn=_fixed_clock())
+    p = q.add_post("a", "llm-tip", "manual")
+    q.reject(p["id"])
+    with pytest.raises(QueueError):
+        q.delete_post(p["id"])  # rejected history is protected
+
+
+def test_delete_unknown_id_raises(tmp_path):
+    q = PostQueue(tmp_path / "posts.json")
+    with pytest.raises(QueueError):
+        q.delete_post("no-such-id")
+
+
 def test_dev_perspective_is_a_valid_pillar(tmp_path):
     from gemini_client import PILLAR_PROMPTS
 

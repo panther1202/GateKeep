@@ -13,6 +13,26 @@ queue = PostQueue(POSTS_PATH)
 
 GENERATABLE_PILLARS = list(PILLAR_PROMPTS.keys())  # excludes "manual"
 
+
+def delete_control(post):
+    """Two-click confirm delete for a queued (draft/approved) post."""
+    pid = post["id"]
+    confirm_key = f"confirm_del_{pid}"
+    if st.session_state.get(confirm_key):
+        st.warning("Delete this post permanently? This cannot be undone.")
+        yes, no = st.columns(2)
+        if yes.button("Yes, delete", key=f"yesdel_{pid}"):
+            queue.delete_post(pid)
+            st.session_state.pop(confirm_key, None)
+            st.rerun()
+        if no.button("Cancel", key=f"canceldel_{pid}"):
+            st.session_state.pop(confirm_key, None)
+            st.rerun()
+    elif st.button("Delete", key=f"del_{pid}"):
+        st.session_state[confirm_key] = True
+        st.rerun()
+
+
 st.set_page_config(page_title="GateKeep", page_icon="✅")
 st.title("GateKeep — LinkedIn post control panel")
 
@@ -64,14 +84,18 @@ for post in pending:
         if c3.button("Reject", key=f"reject_{post['id']}"):
             queue.reject(post["id"])
             st.rerun()
+        delete_control(post)
 
 # --- Approved (waiting to publish) --------------------------------------
 st.header("Approved — waiting to publish")
 approved = [p for p in queue.all_posts() if p["status"] == "approved"]
-for post in sorted(approved, key=lambda p: p["approved_at"]):
-    st.markdown(f"- *{post['pillar']}* (approved {post['approved_at']}): {post['text'][:80]}…")
 if not approved:
     st.caption("Nothing approved yet.")
+for post in sorted(approved, key=lambda p: p["approved_at"]):
+    with st.container(border=True):
+        st.caption(f"{post['pillar']} · approved {post['approved_at']}")
+        st.markdown(post["text"])
+        delete_control(post)
 
 # --- History -------------------------------------------------------------
 st.header("History")
