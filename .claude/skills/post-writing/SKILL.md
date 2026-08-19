@@ -5,10 +5,19 @@ description: Voice, structure, and honesty rules for drafting LinkedIn posts for
 
 # LinkedIn Post Writing Rules
 
+## Fact source
+
+Before drafting, mine [verified-facts.md](verified-facts.md) — a fact bank
+distilled from Panth's general resume (`ai-job-search/cv/main_general.html`).
+Every first-person "I built / I used" claim must trace to that file or
+`CLAUDE.md`. It holds concrete, defensible material (concurrency locks, a
+distributed race-condition repair, EMR/HL7 integration, the full verified stack).
+The Gemini system instruction and pillar prompts are enriched from this same bank.
+
 ## Honesty (non-negotiable, carried over from the ai-job-search project)
 
 - Never state or imply a project is finished, deployed, or successful if it isn't. The IONM/CMS1500 tool is **in development, 85% accuracy, not deployed** - say so.
-- Never invent a role, title, or achievement not present in `CLAUDE.md` or the linked `ai-job-search` profile files.
+- Never invent a role, title, or achievement not present in `CLAUDE.md`, [verified-facts.md](verified-facts.md), or the linked `ai-job-search` profile files.
 - If a fact is genuinely uncertain (exact date, exact metric), leave it vague rather than inventing precision.
 - Apply the "interview backtrack test" from `ai-job-search/.claude/skills/job-application-assistant/03-writing-style.md`: could Panth comfortably explain this line in person without backtracking? If not, cut it or soften it.
 
