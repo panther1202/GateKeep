@@ -36,6 +36,15 @@ Registered as a weekly Claude Code scheduled task that runs `python publish.py` 
 It runs while the app is open on this machine and catches up on next launch if closed at
 trigger time.
 
+## Documentation
+
+Full technical docs live in [`docs/`](docs/README.md):
+
+- [use-case.md](docs/use-case.md) — who it is for, the problem, the workflow, constraints
+- [architecture.md](docs/architecture.md) — components, `posts.json` model, state machine, data flow
+- [models.md](docs/models.md) — Gemini 2.5 Flash generation, prompts, honesty guardrails
+- [api.md](docs/api.md) — LinkedIn (OAuth + Posts) and Gemini API reference
+
 ## Layout
 
 | File | Role |
