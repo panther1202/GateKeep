@@ -1,0 +1,5 @@
+# Auto-rerun the app when a source file is saved. `watchdog` (in
+# requirements.txt) makes the file watch prompt and efficient; without it
+# Streamlit falls back to polling.
+[server]
+runOnSave = true
