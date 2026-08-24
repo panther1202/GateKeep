@@ -1,4 +1,4 @@
-from gemini_client import _strip_dashes
+from gemini_client import _strip_dashes, find_buzzwords
 
 
 def test_em_dash_becomes_comma():
@@ -20,3 +20,41 @@ def test_numeric_range_en_dash_preserved():
 
 def test_plain_text_unchanged():
     assert _strip_dashes("no dashes here, all good.") == "no dashes here, all good."
+
+
+def test_find_buzzwords_clean_text_empty():
+    assert find_buzzwords("A plain honest post about Postgres advisory locks.") == []
+
+
+def test_find_buzzwords_catches_all_bases_and_inflections():
+    text = (
+        "This will unlock seamless value, delve into a game-changing idea, and "
+        "revolutionize the workflow."
+    )
+    # unlock, seamless, delve, game-changer, revolutionize all present.
+    assert set(find_buzzwords(text)) == {
+        "delve",
+        "revolutionize",
+        "game-changer",
+        "unlock",
+        "seamless",
+    }
+
+
+def test_find_buzzwords_is_case_insensitive():
+    assert find_buzzwords("UNLOCKING real value") == ["unlock"]
+
+
+def test_find_buzzwords_matches_game_changer_with_space():
+    assert find_buzzwords("a real game changer here") == ["game-changer"]
+
+
+def test_find_buzzwords_returns_stable_order():
+    # Definition order: delve, revolutionize, game-changer, unlock, seamless.
+    text = "seamless unlock delve"
+    assert find_buzzwords(text) == ["delve", "unlock", "seamless"]
+
+
+def test_find_buzzwords_no_false_positive_on_substring():
+    # "lockdown" and "unlocked" differ: only real inflections of the stem match.
+    assert find_buzzwords("we locked the door during lockdown") == []

@@ -5,7 +5,7 @@ import streamlit as st
 from dotenv import load_dotenv
 
 from post_queue import PostQueue, VALID_PILLARS, QueueError
-from gemini_client import generate_draft, GeminiError, PILLAR_PROMPTS
+from gemini_client import generate_draft, find_buzzwords, GeminiError, PILLAR_PROMPTS
 from linkedin_client import LinkedInError
 from publish import publish_one
 
@@ -69,6 +69,16 @@ def publish_control(post, edited_text):
         st.rerun()
 
 
+def buzzword_warning(text):
+    """Flag any banned buzzwords in the current text so the reviewer cuts them.
+
+    Deterministic check (find_buzzwords); does not block, just warns.
+    """
+    flagged = find_buzzwords(text)
+    if flagged:
+        st.warning("Banned buzzwords present: " + ", ".join(flagged) + ". Edit before publishing.")
+
+
 st.set_page_config(page_title="GateKeep", page_icon="✅")
 st.title("GateKeep — LinkedIn post control panel")
 
@@ -108,6 +118,7 @@ for post in pending:
     with st.container(border=True):
         st.caption(f"{post['pillar']} · {post['source']} · {post['created_at']}")
         edited = st.text_area("Text", value=post["text"], key=f"edit_{post['id']}", height=160)
+        buzzword_warning(edited)
         c1, c2, c3 = st.columns(3)
         if c1.button("Save edits", key=f"save_{post['id']}"):
             queue.update_text(post["id"], edited.strip())
@@ -134,6 +145,7 @@ for post in sorted(approved, key=lambda p: p["approved_at"]):
         edited = st.text_area(
             "Text", value=post["text"], key=f"edit_appr_{post['id']}", height=160
         )
+        buzzword_warning(edited)
         save_col, _ = st.columns(2)
         if save_col.button("Save edits", key=f"save_appr_{post['id']}"):
             queue.update_text(post["id"], edited.strip())

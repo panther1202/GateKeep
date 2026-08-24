@@ -147,6 +147,37 @@ def _strip_dashes(text):
     return text
 
 
+# Buzzwords forbidden by the system instruction. The model obeys the rule only
+# intermittently (e.g. "unlocking value" slips through), so this is a
+# deterministic detector. Each canonical label maps to a stem regex that also
+# catches inflections: unlock/unlocking, seamless/seamlessly, game-changer/
+# game-changing (hyphen or space), delve/delving, revolutionize/revolutionizing
+# (also British -ise). Detection only, no rewrite: cutting a buzzword changes
+# meaning, so a human edits it (unlike the neutral em-dash-to-comma swap).
+BANNED_BUZZWORDS = ("delve", "revolutionize", "game-changer", "unlock", "seamless")
+
+_BUZZWORD_PATTERNS = [
+    (label, re.compile(rf"\b{stem}\w*", re.IGNORECASE))
+    for label, stem in (
+        ("delve", "delv"),
+        ("revolutionize", "revolutioni"),
+        ("game-changer", r"game[-\s]chang"),
+        ("unlock", "unlock"),
+        ("seamless", "seamless"),
+    )
+]
+
+
+def find_buzzwords(text):
+    """Return the canonical banned buzzwords present in text.
+
+    Case-insensitive, inflection-aware (see BANNED_BUZZWORDS). Returns the
+    labels that appear, in a stable order, so a reviewer knows exactly what to
+    cut before approving. Empty list means clean.
+    """
+    return [label for label, pattern in _BUZZWORD_PATTERNS if pattern.search(text)]
+
+
 def generate_draft(api_key, pillar, extra_context=""):
     """Generate a draft post for the given pillar. Returns the draft text."""
     if pillar not in PILLAR_PROMPTS:
