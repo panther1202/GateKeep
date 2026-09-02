@@ -67,69 +67,70 @@ SYSTEM_INSTRUCTION = (
     "work as ongoing or in development."
 )
 
-PILLAR_PROMPTS = {
-    "build-in-public": (
-        "Write a build-in-public LinkedIn post about ongoing work: an AI pipeline that "
-        "converts IONM (intraoperative neuromonitoring) machine JSON output into CMS-1500 "
-        "insurance-claim format, built with Python and Amazon Nova v1 Pro on Amazon Bedrock, "
-        "as part of a multi-tenant healthcare SaaS platform. Facts you may use: it cut manual "
-        "claim entry from about a day per surgery to under five minutes; current extraction "
-        "accuracy is 85% and improving; it is still in development, not finished or deployed. "
-        "Anchor the post in ONE concrete detail (a specific tradeoff, number, validation "
-        "problem, or lesson about structured-output extraction from messy machine JSON) rather "
-        "than a vague progress update. Do not overstate its status."
-    ),
-    "llm-tip": (
-        "Write a LinkedIn post about a real technical problem Panth ran into while building "
-        "LLM apps with LangChain, LangGraph, or AWS Bedrock/Nova, and how he worked through "
-        "it. Real material to draw ONE story from: coercing an LLM to emit valid structured "
-        "output (CMS-1500 records) from messy IONM machine JSON, and validating it; getting "
-        "reliable extraction at ~85% accuracy and the failure modes that fought him. Frame it "
-        "as his own experience and engineering judgment, not as a tutorial or advice to "
-        "others. The goal is to show he can diagnose and solve hard problems, not to teach a "
-        "lesson. Get to the friction point fast; clarify a term only if a non-specialist would "
-        "otherwise be lost."
-    ),
-    "career-journey": (
-        "Write a LinkedIn post about relocating from Vadodara, India to Somerset, NJ, USA and "
-        "job-searching for US software/AI engineering roles. Context you may draw on honestly: "
-        "a Post Graduate Diploma in Software Development - AI from Algonquin College (Ottawa), "
-        "a CAPM certification, and current work shipping AI features on a production healthcare "
-        "platform. Honest and reflective, not self-pitying or boastful."
-    ),
-    "ai-take": (
-        "Write a LinkedIn post giving Panth's own opinion on a development or trend in AI. "
-        "Assertive and clear (he is comfortable holding a point of view), grounded and not "
-        "inflammatory. Judge it by how it affects the people who actually build or use AI "
-        "systems, a lens he has from running an LLM extraction pipeline against real, messy "
-        "data in a regulated healthcare setting. Base the post on a specific development given "
-        "in the additional context. If no specific news is provided, write about a broader "
-        "durable shift you can discuss accurately, and do not invent recent headlines, dates, "
-        "or statistics."
-    ),
-    "dev-perspective": (
-        "Write a LinkedIn post from a software engineer's perspective. Cover exactly ONE "
-        "angle, do not merge several: an engineering craft observation from his own work "
-        "(architecture, tooling, debugging, workflow); a technical deep-dive into something he "
-        "actually built; or an opinionated take on a language, framework, or tool. Real "
-        "deep-dive material to pick ONE from (use its specifics, do not blend them):\n"
-        "  - concurrency-safe slot booking: row-level plus PostgreSQL advisory locks "
-        "guaranteeing one-winner booking, with a DST-safe slot engine;\n"
-        "  - a distributed race-condition repair: a durable workflow engine failed to "
-        "serialize suspended runs so one SMS reply woke only one parked workflow, rebuilt with "
-        "per-patient ownership locks, a FIFO grant queue, and TTL crash recovery;\n"
-        "  - bi-directional EMR integration over SNS to SQS FIFO to Mirth Connect (HL7) to "
-        "REST, replacing fragile index matching with a stable external-ID backbone plus E.164 "
-        "phone normalization;\n"
-        "  - modeling multi-channel delivery state (SMS, email, voice) in a JSONB column;\n"
-        "  - the IONM-to-CMS-1500 LLM pipeline on Bedrock/Nova (still in development).\n"
-        "Engineer-to-engineer voice, one concrete point. A short code snippet is fine if it "
-        "earns its place, but LinkedIn renders code as plain text, so keep it under about 8 "
-        "lines. Do not overstate any project's status."
-    ),
-}
-    
+# Craft rules hoisted out of the old per-pillar prompts. They were never
+# pillar-specific: "one concrete detail", "one angle, do not merge" applied
+# equally to every pillar, so they are stated once and always apply.
+CRAFT_RULES = (
+    "\n\nCRAFT:\n"
+    "- Cover exactly ONE angle. Do not merge several ideas into a survey post.\n"
+    "- Anchor the post in ONE concrete detail (a specific tradeoff, number, failure mode, or "
+    "decision), never a vague progress update or overview.\n"
+    "- Get to the friction point fast. No throat-clearing preamble."
+)
 
+# Panth's verified factual material, available to ANY post. Previously this was
+# split across five pillar prompts, which arbitrarily hid the booking-lock story
+# from a build-in-public post and the IONM pipeline from a dev-perspective one.
+# The pillar is now a label the model applies after the fact, not a gate on
+# which facts it may cite.
+FACTS = (
+    "VERIFIED MATERIAL (the only things Panth may be said to have personally built or lived; "
+    "draw on whichever fits the request, and use a story's own specifics rather than blending "
+    "several together):\n"
+    "- IONM-to-CMS-1500 pipeline: converts intraoperative neuromonitoring machine JSON into "
+    "CMS-1500 insurance claims, Python and Amazon Nova v1 Pro on Amazon Bedrock, inside a "
+    "multi-tenant healthcare SaaS platform. Cut manual claim entry from about a day per "
+    "surgery to under five minutes. Extraction accuracy currently 85% and improving. STILL IN "
+    "DEVELOPMENT: not finished, not shipped, not deployed. Rich material on coercing valid "
+    "structured output out of messy machine JSON, validating it, and the failure modes there.\n"
+    "- Concurrency-safe slot booking: row-level plus PostgreSQL advisory locks guaranteeing "
+    "one-winner booking, with a DST-safe slot engine.\n"
+    "- A distributed race-condition repair: a durable workflow engine failed to serialize "
+    "suspended runs, so one inbound SMS reply woke only one parked workflow. Rebuilt with "
+    "per-patient ownership locks, a FIFO grant queue, and TTL crash recovery.\n"
+    "- Bi-directional EMR integration: SNS to SQS FIFO to Mirth Connect (HL7) to REST, "
+    "replacing fragile index matching with a stable external-ID backbone plus E.164 phone "
+    "normalization.\n"
+    "- Modeling multi-channel delivery state (SMS, email, voice) in a JSONB column.\n"
+    "- Background: relocating from Vadodara, India to Somerset, NJ, USA and job-searching for "
+    "US software/AI engineering roles. Post Graduate Diploma in Software Development - AI from "
+    "Algonquin College (Ottawa). CAPM certification.\n"
+    "- Stack: Python, FastAPI, async SQLAlchemy 2.0, PostgreSQL, event-driven AWS "
+    "(ECS/SNS/SQS/S3/Lambda), Inngest, LangChain, LangGraph, Bedrock, React 18 and TypeScript."
+)
+
+# Labels applied to a finished draft for history and topic-spread tracking. The
+# user never picks one; the model tags what it wrote.
+GENERATABLE_PILLARS = (
+    "build-in-public",
+    "llm-tip",
+    "career-journey",
+    "ai-take",
+    "dev-perspective",
+)
+
+PILLAR_MEANINGS = (
+    "PILLAR LABELS (for tagging only, never mentioned in the post itself):\n"
+    "- build-in-public: progress or a lesson from the IONM-to-CMS-1500 work in flight.\n"
+    "- llm-tip: a real problem hit while building with LangChain, LangGraph, or Bedrock.\n"
+    "- career-journey: the relocation and US job search. The ONLY pillar that touches "
+    "job-seeking.\n"
+    "- ai-take: an opinion on a development or trend in AI, judged by its effect on people who "
+    "build or use AI systems.\n"
+    "- dev-perspective: engineer-to-engineer craft, a deep-dive into something he built, or an "
+    "opinionated take on a language, framework, or tool. A short code snippet is fine if it "
+    "earns its place, but keep it under about 8 lines (LinkedIn renders code as plain text)."
+)
 class GeminiError(Exception):
     """Raised when Gemini generation fails."""
 
@@ -178,17 +179,62 @@ def find_buzzwords(text):
     return [label for label, pattern in _BUZZWORD_PATTERNS if pattern.search(text)]
 
 
-def generate_draft(api_key, pillar, extra_context=""):
-    """Generate a draft post for the given pillar. Returns the draft text."""
-    if pillar not in PILLAR_PROMPTS:
-        raise GeminiError(f"no prompt template for pillar {pillar!r}")
-    prompt = PILLAR_PROMPTS[pillar]
-    if extra_context.strip():
-        prompt += f"\n\nAdditional context to weave in:\n{extra_context.strip()}"
+def _split_pillar(text):
+    """Peel the model's `PILLAR: x` tag line off the front of a draft.
+
+    Returns (pillar, body). An unrecognized or missing tag falls back to
+    "dev-perspective" and the text is left untouched, so a malformed tag costs
+    a wrong label, never a lost draft.
+    """
+    head, _, rest = text.partition("\n")
+    match = re.match(r"\s*PILLAR:\s*([a-z-]+)\s*$", head, re.IGNORECASE)
+    if match and match.group(1).lower() in GENERATABLE_PILLARS:
+        return match.group(1).lower(), rest.strip()
+    return "dev-perspective", text
+
+
+def generate_draft(api_key, request="", recent_pillars=(), previous=""):
+    """Generate a draft from a plain-language request. Returns (pillar, text).
+
+    `request` is whatever the user typed ("the race condition I fixed, make it
+    engineer-to-engineer"); empty means the model picks a topic itself, steered
+    away from `recent_pillars` so the feed does not repeat. `previous` carries
+    an earlier draft when the user is refining it, in which case `request` is
+    the refinement instruction rather than a topic.
+    """
+    parts = [FACTS, "", PILLAR_MEANINGS, ""]
+    if previous.strip():
+        parts += [
+            "Here is a draft you wrote earlier:",
+            previous.strip(),
+            "",
+            "Revise it per this instruction, keeping everything the instruction does not "
+            "touch:",
+            request.strip() or "make it sharper.",
+        ]
+    elif request.strip():
+        parts += [
+            "Write a LinkedIn post for this request. It may name a topic, an angle, a tone, or "
+            "all three; honor whatever it specifies and use your judgment for the rest:",
+            request.strip(),
+        ]
+    else:
+        recent = ", ".join(recent_pillars)
+        parts += [
+            "No topic was given. Pick one yourself from the verified material above, choosing "
+            "something with a genuinely interesting angle."
+            + (f" Avoid these recently used pillars: {recent}." if recent else ""),
+        ]
+    parts += [
+        "",
+        "Output the pillar label that best fits what you wrote as the very first line, exactly "
+        "in the form `PILLAR: <label>`, then a blank line, then the post itself. Nothing else.",
+    ]
+    prompt = "\n".join(parts)
     try:
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel(
-            MODEL_NAME, system_instruction=SYSTEM_INSTRUCTION
+            MODEL_NAME, system_instruction=SYSTEM_INSTRUCTION + CRAFT_RULES
         )
         resp = model.generate_content(prompt)
         text = (resp.text or "").strip()
@@ -196,4 +242,7 @@ def generate_draft(api_key, pillar, extra_context=""):
         raise GeminiError(f"Gemini generation failed: {e}") from e
     if not text:
         raise GeminiError("Gemini returned an empty draft")
-    return _strip_dashes(text)
+    pillar, body = _split_pillar(text)
+    if not body.strip():
+        raise GeminiError("Gemini returned a pillar tag with no post")
+    return pillar, _strip_dashes(body)

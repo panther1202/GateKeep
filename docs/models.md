@@ -26,33 +26,44 @@ higher-cost models buy little when a human polishes the output anyway.
 
 ### How generation is structured
 
-Generation is two layers of prompt plus a deterministic post-process:
+Generation is one prompt layer plus a deterministic post-process. The user types
+a plain-language request; there is no pillar picker.
 
 ```
-system_instruction (fixed voice + honesty rules)   ← who Panth is, how to write
+system_instruction + CRAFT_RULES (fixed voice, honesty, craft)  <- who Panth is, how to write
         +
-pillar prompt (per content pillar)                 ← what this specific post is about
+FACTS (the whole verified fact bank)                            <- what he may claim as his own
         +
-optional extra context (user-typed)                ← e.g. a news item for ai-take
-        ↓
+PILLAR_MEANINGS (label definitions, for tagging only)
+        +
+the user's request, OR a refinement of an earlier draft         <- "the race condition, opinionated"
+        v
    Gemini 2.5 Flash
-        ↓
-   _strip_dashes()                                  ← enforce no-em-dash rule
-        ↓
-   draft text
+        v
+   _split_pillar()                                              <- peel the `PILLAR: x` tag line
+        v
+   _strip_dashes()                                              <- enforce no-em-dash rule
+        v
+   (pillar, draft text)
 ```
 
 - **System instruction** (`gemini_client.SYSTEM_INSTRUCTION`) sets the persona
-  (Panth, a builder — not a teacher or marketer), the voice, and the hard rules:
+  (Panth, a builder, not a teacher or marketer), the voice, and the hard rules:
   first person, a standalone hook line, one fresh insight, accessible to a
-  recruiter, 2–4 tasteful emojis, at most 3 hashtags, 120–220 words, ending on a
-  genuine question. It forbids em-dashes, clichés, and AI buzzwords ("delve",
-  "revolutionize", "game-changer", "unlock", "seamless").
-- **Pillar prompts** (`gemini_client.PILLAR_PROMPTS`) give the concrete subject
-  per pillar. The `manual` pillar has **no** prompt — it is not generatable, so
-  the app's Generate dropdown is driven by `PILLAR_PROMPTS.keys()`.
-- **Extra context** is appended to the pillar prompt when the user supplies it
-  (used most by `ai-take` to anchor an opinion to a specific development).
+  recruiter, 2 to 4 tasteful emojis, at most 3 hashtags, 120-220 words, ending on
+  a genuine question. It forbids em-dashes, cliches, and AI buzzwords ("delve",
+  "revolutionize", "game-changer", "unlock", "seamless"). `CRAFT_RULES` is
+  appended to it: one angle, one concrete detail, no preamble.
+- **`FACTS`** is the single bank of verified material Panth may claim as his own.
+  It is deliberately *not* partitioned by pillar: any post may cite any real
+  story, and the model picks what fits the request.
+- **`PILLAR_MEANINGS`** defines the five labels so the model can tag what it
+  wrote. The pillar is an output, not an input. It is stored on the post for
+  history and topic-spread only, and never appears in the post text.
+- **Modes.** With a request, the model writes to it. With an empty request, it
+  picks a topic and is steered away from `recent_pillars` (the last 3 posts) so
+  the feed does not repeat. With `previous=` set, the request is read as a
+  revision instruction against that earlier draft (the app's Refine box).
 
 ### The honesty guardrails (in the prompt)
 
@@ -80,8 +91,12 @@ The model obeys the no-em-dash rule only intermittently, so
 - spaced `–` (en-dash used as punctuation) → `, `
 - digit-flanked en-dash (a numeric range like `120–220`) → left untouched
 
-If Gemini returns empty text, `generate_draft` raises `GeminiError` rather than
-queuing a blank draft.
+`_split_pillar()` runs first, peeling the model's `PILLAR: <label>` tag line off
+the front. An unrecognized or missing tag falls back to `dev-perspective` and
+leaves the text intact: a malformed tag costs a label, never a draft.
+
+If Gemini returns empty text (or a tag with no post after it), `generate_draft`
+raises `GeminiError` rather than queuing a blank draft.
 
 ## 2. Subject model — Amazon Nova v1 Pro (context only)
 

@@ -164,23 +164,38 @@ for retry (see [architecture.md](architecture.md)).
 ### Request shape
 
 - **`system_instruction`** — the fixed persona + voice + honesty rules
-  (`SYSTEM_INSTRUCTION`).
-- **`prompt`** — the selected pillar's template (`PILLAR_PROMPTS[pillar]`), with
-  optional user context appended:
+  (`SYSTEM_INSTRUCTION`) with `CRAFT_RULES` appended.
+- **`prompt`** — assembled per call from `FACTS` + `PILLAR_MEANINGS` + the
+  user's plain-language request, then a tag instruction:
 
   ```
-  {pillar prompt}
+  {FACTS}
 
-  Additional context to weave in:
-  {extra_context}
+  {PILLAR_MEANINGS}
+
+  Write a LinkedIn post for this request...
+  {request}
+
+  Output the pillar label ... as the very first line, exactly in the form
+  `PILLAR: <label>`, then a blank line, then the post itself.
   ```
+
+  Two variants replace the middle section: an empty request becomes "pick a
+  topic yourself, avoid these recently used pillars: ..."; a non-empty
+  `previous=` becomes "here is a draft you wrote earlier ... revise it per this
+  instruction".
+
+**Signature:** `generate_draft(api_key, request="", recent_pillars=(), previous="")`
+→ `(pillar, text)`.
 
 ### Response handling
 
-- The SDK response's `.text` is stripped and passed through `_strip_dashes()`
-  (see [models.md](models.md)) before returning.
+- `.text` is stripped, then `_split_pillar()` peels the `PILLAR:` tag line, then
+  the body passes through `_strip_dashes()` (see [models.md](models.md)).
+- **Unrecognized or missing tag** → falls back to `dev-perspective`, text kept
+  whole. Not an error.
 - **Empty output** → `GeminiError("Gemini returned an empty draft")`.
-- **Unknown pillar** (no template) → `GeminiError`.
+- **Tag line with no body** → `GeminiError("Gemini returned a pillar tag with no post")`.
 - **Any SDK exception** is caught and re-raised as
   `GeminiError("Gemini generation failed: ...")`.
 

@@ -1,4 +1,4 @@
-from gemini_client import _strip_dashes, find_buzzwords
+from gemini_client import _split_pillar, _strip_dashes, find_buzzwords
 
 
 def test_em_dash_becomes_comma():
@@ -58,3 +58,23 @@ def test_find_buzzwords_returns_stable_order():
 def test_find_buzzwords_no_false_positive_on_substring():
     # "lockdown" and "unlocked" differ: only real inflections of the stem match.
     assert find_buzzwords("we locked the door during lockdown") == []
+
+
+def test_split_pillar_peels_the_tag_line():
+    text = "PILLAR: llm-tip\n\nThe post body."
+    assert _split_pillar(text) == ("llm-tip", "The post body.")
+
+
+def test_split_pillar_is_case_insensitive():
+    assert _split_pillar("pillar:  Ai-Take\nbody")[0] == "ai-take"
+
+
+def test_split_pillar_unknown_label_keeps_whole_text():
+    # A malformed tag must cost a label, never the draft itself.
+    text = "PILLAR: nonsense\n\nbody"
+    assert _split_pillar(text) == ("dev-perspective", text)
+
+
+def test_split_pillar_missing_tag_keeps_whole_text():
+    text = "Just a post with no tag line."
+    assert _split_pillar(text) == ("dev-perspective", text)

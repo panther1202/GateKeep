@@ -4,8 +4,8 @@ from pathlib import Path
 import streamlit as st
 from dotenv import load_dotenv
 
-from post_queue import PostQueue, VALID_PILLARS, QueueError
-from gemini_client import generate_draft, find_buzzwords, GeminiError, PILLAR_PROMPTS
+from post_queue import PostQueue, QueueError
+from gemini_client import generate_draft, find_buzzwords, GeminiError
 from linkedin_client import LinkedInError
 from publish import publish_one
 
@@ -13,7 +13,13 @@ load_dotenv()
 POSTS_PATH = Path(__file__).parent / "posts.json"
 queue = PostQueue(POSTS_PATH)
 
-GENERATABLE_PILLARS = list(PILLAR_PROMPTS.keys())  # excludes "manual"
+
+def recent_pillars(n=3):
+    """Pillars of the last n posts, newest first, to steer a no-topic draft.
+
+    Only nudges the model away from repeating itself; not a hard exclusion.
+    """
+    return [p["pillar"] for p in reversed(queue.all_posts())][:n]
 
 
 def delete_control(post):
@@ -69,6 +75,30 @@ def publish_control(post, edited_text):
         st.rerun()
 
 
+def refine_control(post):
+    """Ask Gemini to revise this draft in place from a plain-language note.
+
+    Overwrites the text (no undo, by choice). The pillar tag is kept: a
+    refinement sharpens a post, it does not re-file it.
+    """
+    pid = post["id"]
+    note = st.text_input(
+        "Refine", key=f"refine_{pid}", placeholder="e.g. shorter, lead with the number"
+    )
+    if st.button("Regenerate", key=f"regen_{pid}"):
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            st.error("GEMINI_API_KEY missing from .env")
+            return
+        try:
+            with st.spinner("Revising..."):
+                _, revised = generate_draft(api_key, note, previous=post["text"])
+            queue.update_text(pid, revised)
+            st.rerun()
+        except (GeminiError, QueueError) as e:
+            st.error(str(e))
+
+
 def buzzword_warning(text):
     """Flag any banned buzzwords in the current text so the reviewer cuts them.
 
@@ -82,29 +112,51 @@ def buzzword_warning(text):
 st.set_page_config(page_title="GateKeep", page_icon="✅")
 st.title("GateKeep — LinkedIn post control panel")
 
-# --- Add a manual post ---------------------------------------------------
-st.header("Add a manual post")
-with st.form("manual", clear_on_submit=True):
-    manual_text = st.text_area("Post text", height=160)
-    manual_pillar = st.selectbox("Pillar / tag", sorted(VALID_PILLARS))
-    if st.form_submit_button("Add draft") and manual_text.strip():
-        queue.add_post(text=manual_text.strip(), pillar=manual_pillar, source="manual")
+# Nothing can publish without an OAuth token, and the failure was previously
+# invisible until you clicked into the publish confirm. Say it up front.
+if not (os.environ.get("LINKEDIN_ACCESS_TOKEN") and os.environ.get("LINKEDIN_AUTHOR_URN")):
+    st.error(
+        "LinkedIn is not connected: no access token in .env. Approving a post will "
+        "queue it but nothing will publish. Run `python reauth.py`, then restart this app."
+    )
+
+# --- New post ------------------------------------------------------------
+# One box for both paths. Say what you want and let Gemini write it, or paste
+# text you already wrote. No pillar picker: the model tags what it produced
+# (see gemini_client._split_pillar) and hand-written posts are tagged "manual".
+st.header("New post")
+with st.form("new_post", clear_on_submit=True):
+    request = st.text_area(
+        "What do you want to post about, and how should it land?",
+        height=140,
+        placeholder=(
+            "e.g. the race condition I fixed in the workflow engine, "
+            "engineer-to-engineer and a bit opinionated. "
+            "Leave empty and hit Draft with AI to let it pick a topic."
+        ),
+    )
+    draft_col, manual_col = st.columns(2)
+    do_draft = draft_col.form_submit_button("Draft with AI")
+    do_manual = manual_col.form_submit_button("Add as-is")
+
+if do_manual:
+    if not request.strip():
+        st.error("Nothing to add. Type the post text first.")
+    else:
+        queue.add_post(text=request.strip(), pillar="manual", source="manual")
         st.success("Draft added.")
         st.rerun()
 
-# --- Generate a draft with Gemini ---------------------------------------
-st.header("Generate a draft (Gemini)")
-gen_pillar = st.selectbox("Pillar", GENERATABLE_PILLARS, key="gen_pillar")
-gen_context = st.text_input("Optional extra context")
-if st.button("Generate"):
+if do_draft:
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         st.error("GEMINI_API_KEY missing from .env")
     else:
         try:
-            draft = generate_draft(api_key, gen_pillar, gen_context)
-            queue.add_post(text=draft, pillar=gen_pillar, source="generated")
-            st.success("Generated draft added below for review.")
+            with st.spinner("Drafting..."):
+                pillar, draft = generate_draft(api_key, request, recent_pillars())
+            queue.add_post(text=draft, pillar=pillar, source="generated")
+            st.success(f"Draft added below for review (tagged {pillar}).")
             st.rerun()
         except GeminiError as e:
             st.error(str(e))
@@ -131,6 +183,8 @@ for post in pending:
         if c3.button("Reject", key=f"reject_{post['id']}"):
             queue.reject(post["id"])
             st.rerun()
+        if post["source"] == "generated":
+            refine_control(post)
         publish_control(post, edited)
         delete_control(post)
 

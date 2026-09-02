@@ -210,10 +210,10 @@ def test_delete_unknown_id_raises(tmp_path):
 
 
 def test_dev_perspective_is_a_valid_pillar(tmp_path):
-    from gemini_client import PILLAR_PROMPTS
+    from gemini_client import GENERATABLE_PILLARS
 
     q = PostQueue(tmp_path / "posts.json", now_fn=_fixed_clock())
     p = q.add_post("dev post", "dev-perspective", "manual")
     assert p["pillar"] == "dev-perspective"
-    # Also exposed as a generatable pillar (drives the Generate dropdown).
-    assert "dev-perspective" in PILLAR_PROMPTS
+    # Also a label the model may tag a draft with.
+    assert "dev-perspective" in GENERATABLE_PILLARS
